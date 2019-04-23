@@ -11,6 +11,12 @@ import java.util.regex.Matcher
 
 import Utilities._
 
+/** Cassandra imports */
+import com.datastax.spark.connector._
+import com.datastax.driver.core.Cluster
+import org.apache.spark.sql.cassandra._
+
+/** Kaffka imports */
 import org.apache.spark.streaming.kafka._
 import kafka.serializer.StringDecoder
 
@@ -19,9 +25,24 @@ object KafkaConsumer {
   
   val TOPIC : String = "tweets";
   
-  def main(args: Array[String]) {
-    // Create the context with a 1 second batch size
-    val ssc = new StreamingContext("local[*]", "KafkaExample", Seconds(1))
+  def main(args: Array[String]) {    
+    // Set up the Cassandra host address
+    val conf = new SparkConf()
+    conf.set("spark.cassandra.connection.host", "127.0.0.1")
+    conf.setMaster("local[*]")
+    conf.setAppName("CassandraExample")
+    
+    // get the values we need out of the config file
+    val cassandra_host = conf.get("spark.cassandra.connection.host"); //cassandra host
+
+    val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
+    val session = cluster.connect()
+    session.execute("CREATE KEYSPACE IF NOT EXISTS ic_example2 WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+    session.execute("CREATE TABLE IF NOT EXISTS ic_example2.word_count (hashtag text, count int, PRIMARY KEY(hashtag, count)) ")
+    session.execute("TRUNCATE ic_example2.word_count")
+    session.close()
+    
+    val ssc = new StreamingContext(conf, Seconds(1))
     
     setupLogging()
     
@@ -44,6 +65,13 @@ object KafkaConsumer {
     // Sort and print the results
     val sortedHashtags = hashtagsCounts.transform(rdd => rdd.sortBy(x => x._2, false))
     sortedHashtags.print()
+    
+    // Now store it in Cassandra
+      sortedHashtags.foreachRDD((rdd, time) => {
+      rdd.cache()
+      println("Writing " + rdd.count() + " rows to Cassandra")
+      rdd.saveToCassandra("ic_example2", "word_count", SomeColumns("hashtag", "count"))
+    })
     
     // Kick it off
     ssc.checkpoint("/home/piosobc/checkpoint")
