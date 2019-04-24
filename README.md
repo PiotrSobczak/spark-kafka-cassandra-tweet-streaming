@@ -1,9 +1,12 @@
 # Project description
 This is a sample application which reads tweets from Twitter stream, processes them and saves to Cassandra.
-The application consist of two spark jobs. The first one reads input Twitter stream using spark streaming, 
-extracts message, username, datetime, language and tweet_id from tweet and sends it to the second spark job using Kafka.
-The second spark job reads the messages from Kafka topic, parses them and saves to Cassanda database.
+The application consists of Kafka Producer and Kafka Consumer, both using spark streaming. 
+Kafka Producer reads input Twitter stream using spark streaming, extracts message, username, datetime, language, tweet_id from tweet, coverts the message to json and sends it on Kafka topic.
+Consumer reads the messages from Kafka topic, parses them and saves to Cassanda database.
 Note: This is just a sample application which is configured to run on localhost. 
+
+# System architecture
+<img src="https://github.com/PiotrSobczak/spark-kafka-cassandra-tweet-streaming/blob/master/misc/architecture.png" width="600"></img>
 
 # Dependencies
 - Scala(2.11)
