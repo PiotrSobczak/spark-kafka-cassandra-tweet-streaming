@@ -1,15 +1,22 @@
 package com.piosobc.twitterpopulartags
 
+/** Spark imports */
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.twitter._
 import org.apache.spark.streaming.StreamingContext._
-import Utilities._
-import java.util.Properties
+
+/** Kafka imports */
 import org.apache.kafka.clients.producer._
 import org.apache.kafka.common.serialization._;
+
+/** Other imports */
+import java.util.Properties
 import twitter4j.Status
+
+/** Custom imports */
+import Utilities._
 
 /** Listens to a stream of Tweets and keeps track of the most popular
  *  hashtags over a 5 minute window.
@@ -17,54 +24,54 @@ import twitter4j.Status
 object KafkaProducer {
   
   val TOPIC : String = "tweets";
-  case class TweetObj(message: String, user: String)
+  val BATCH_INTERVAL_IN_SEC : Int = 1;
+  val CHECKPOINT_PATH : String = System.getProperty("user.home") + "/checkpoint";
   
   def toJson(status: Status ) : String = {
     val mapObj = Map[String, Any](
-    "msg" -> status.getText,
-    "user" -> status.getUser.getName,
-    "lang" -> status.getLang,
-    "time" -> status.getCreatedAt.toString(),
-    "id" -> status.getId
+      "msg" -> status.getText,
+      "user" -> status.getUser.getName,
+      "lang" -> status.getLang,
+      "time" -> status.getCreatedAt.toString(),
+      "id" -> status.getId
     )
     return scala.util.parsing.json.JSONObject(mapObj).toString()
   }
   
   /** Our main function where the action happens */
   def main(args: Array[String]) {
+     val  props = new Properties()
+     props.put("bootstrap.servers", "localhost:9092")   
+     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+     props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+      
+    // Configure Twitter credentials using twitter.txt
+    setupTwitter()
     
-   val  props = new Properties()
-   props.put("bootstrap.servers", "localhost:9092")
+    // Set up a Spark streaming context named "PopularHashtags" that runs locally using
+    val ssc = new StreamingContext("local[*]", "KafkaProducer", Seconds(BATCH_INTERVAL_IN_SEC))
     
-   props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
-   props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    // Getting rid of log spam */
+    setupLogging()
     
-  // Configure Twitter credentials using twitter.txt
-  setupTwitter()
-  
-  // Set up a Spark streaming context named "PopularHashtags" that runs locally using
-  // all CPU cores and one-second batches of data
-  val ssc = new StreamingContext("local[*]", "PopularHashtags", Seconds(1))
-  
-  // Get rid of log spam (should be called after the context is set up)
-  setupLogging()
-  
-  // Create a DStream from Twitter using our streaming context
-  val tweets = TwitterUtils.createStream(ssc, None)
-  
-  val tweetObjects = tweets.map(toJson)
-
-  tweetObjects.foreachRDD(rdd => {
-    rdd.foreachPartition { message =>
-      message.foreach( msg => {
+    // Create a DStream from Twitter
+    val tweetsRaw = TwitterUtils.createStream(ssc, None)
+    
+    //Convert Twitter Statuses to jsons
+    val tweetObjects = tweetsRaw.map(toJson)
+    
+    // Publishing Twitter jsons on Kafka topic
+    // Note: Creating and disposing KafkaProducer for each partition results in an overhead. This could be optimized using Sinks.
+    tweetObjects.foreachRDD { rdd =>
+      rdd.foreachPartition { partitionOfRecords =>
         val producer = new KafkaProducer[String, String](props)
-        val pr = new ProducerRecord(TOPIC, "key", msg);
-        producer.send(pr)
-        producer.close() 
-      })
+        partitionOfRecords.foreach { message =>
+          producer.send(new ProducerRecord(TOPIC, "key", message))
+        }
+        producer.close()
+      }
     }
-  })
-    ssc.checkpoint("/home/piosobc/checkpoint")
+    ssc.checkpoint(CHECKPOINT_PATH)
     ssc.start()
     ssc.awaitTermination()
   }  
