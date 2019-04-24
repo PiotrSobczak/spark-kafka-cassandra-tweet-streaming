@@ -37,12 +37,12 @@ object KafkaConsumer {
 
     val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
     val session = cluster.connect()
-    session.execute("CREATE KEYSPACE IF NOT EXISTS ic_example2 WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-    session.execute("CREATE TABLE IF NOT EXISTS ic_example2.word_count (hashtag text, count int, PRIMARY KEY(hashtag, count)) ")
-    session.execute("TRUNCATE ic_example2.word_count")
+    session.execute("CREATE KEYSPACE IF NOT EXISTS ic_example5 WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+    session.execute("CREATE TABLE IF NOT EXISTS ic_example5.word_count (msg text, user text, lang text, time text, id bigint, PRIMARY KEY(id)) ")
+    session.execute("TRUNCATE ic_example5.word_count")
     session.close()
     
-    val ssc = new StreamingContext(conf, Seconds(1))
+    val ssc = new StreamingContext(conf, Seconds(2))
     
     setupLogging()
     
@@ -57,20 +57,14 @@ object KafkaConsumer {
     // map(_._2) at the end in order to only get the messages, which contain individual
     // lines of data.
     val lines = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, topics).map(_._2)
-    val hashtags = lines.flatMap(tweet => tweet.split(" ")).filter(word => word.startsWith("#"))
+    val objects = lines.map(line => scala.util.parsing.json.JSON.parseFull(line).get.asInstanceOf[Map[String, Any]])
+    val objectTuples = objects.map(obj => (obj("msg"), obj("user"), obj("lang"), obj("time"), obj("id")))
     
-    // Reduce by URL over a 5-minute window sliding every second
-    val hashtagsCounts = hashtags.countByValueAndWindow(Seconds(300), Seconds(1))
-    
-    // Sort and print the results
-    val sortedHashtags = hashtagsCounts.transform(rdd => rdd.sortBy(x => x._2, false))
-    sortedHashtags.print()
-    
-    // Now store it in Cassandra
-      sortedHashtags.foreachRDD((rdd, time) => {
+     //Now store it in Cassandra
+    objectTuples.foreachRDD((rdd, time) => {
       rdd.cache()
       println("Writing " + rdd.count() + " rows to Cassandra")
-      rdd.saveToCassandra("ic_example2", "word_count", SomeColumns("hashtag", "count"))
+      rdd.saveToCassandra("ic_example5", "word_count", SomeColumns("msg", "user", "lang", "time", "id"))
     })
     
     // Kick it off

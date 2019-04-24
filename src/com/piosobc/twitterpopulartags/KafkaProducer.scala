@@ -6,9 +6,10 @@ import org.apache.spark.streaming._
 import org.apache.spark.streaming.twitter._
 import org.apache.spark.streaming.StreamingContext._
 import Utilities._
-
- import java.util.Properties
- import org.apache.kafka.clients.producer._
+import java.util.Properties
+import org.apache.kafka.clients.producer._
+import org.apache.kafka.common.serialization._;
+import twitter4j.Status
 
 /** Listens to a stream of Tweets and keeps track of the most popular
  *  hashtags over a 5 minute window.
@@ -16,6 +17,18 @@ import Utilities._
 object KafkaProducer {
   
   val TOPIC : String = "tweets";
+  case class TweetObj(message: String, user: String)
+  
+  def toJson(status: Status ) : String = {
+    val mapObj = Map[String, Any](
+    "msg" -> status.getText,
+    "user" -> status.getUser.getName,
+    "lang" -> status.getLang,
+    "time" -> status.getCreatedAt.toString(),
+    "id" -> status.getId
+    )
+    return scala.util.parsing.json.JSONObject(mapObj).toString()
+  }
   
   /** Our main function where the action happens */
   def main(args: Array[String]) {
@@ -37,8 +50,11 @@ object KafkaProducer {
   setupLogging()
   
   // Create a DStream from Twitter using our streaming context
-  val tweets = TwitterUtils.createStream(ssc, None).map(status => status.getText());
-  tweets.foreachRDD(rdd => {
+  val tweets = TwitterUtils.createStream(ssc, None)
+  
+  val tweetObjects = tweets.map(toJson)
+
+  tweetObjects.foreachRDD(rdd => {
     rdd.foreachPartition { message =>
       message.foreach( msg => {
         val producer = new KafkaProducer[String, String](props)
