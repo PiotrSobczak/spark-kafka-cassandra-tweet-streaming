@@ -1,6 +1,6 @@
 // Kafka setup instructions for Windows: https://dzone.com/articles/running-apache-kafka-on-windows-os
 
-package com.piosobc.twitterpopulartags
+package com.piosobc.sparkstreamingtweets
 
 /** Spark imports */
 import org.apache.spark.SparkConf

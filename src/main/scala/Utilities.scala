@@ -1,4 +1,4 @@
-package com.piosobc.twitterpopulartags
+package com.piosobc.sparkstreamingtweets
 
 import org.apache.log4j.Level
 import java.util.regex.Pattern

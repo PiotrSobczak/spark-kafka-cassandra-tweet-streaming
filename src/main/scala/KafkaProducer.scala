@@ -1,4 +1,4 @@
-package com.piosobc.twitterpopulartags
+package com.piosobc.sparkstreamingtweets
 
 /** Spark imports */
 import org.apache.spark._
