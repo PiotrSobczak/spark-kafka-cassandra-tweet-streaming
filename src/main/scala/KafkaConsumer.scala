@@ -35,6 +35,7 @@ object KafkaConsumer {
     conf.setMaster("local[*]")
     conf.setAppName("CassandraExample")
     
+    // Configuring Cassandra 
     val cassandra_host = conf.get("spark.cassandra.connection.host");
     val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
     val session = cluster.connect()
@@ -47,9 +48,8 @@ object KafkaConsumer {
     
     setupLogging()
 
-    // hostname:port for Kafka brokers, not Zookeeper
+    // Configuring Kafka
     val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
-    // List of topics you want to listen for from Kafka
     val topics = List(TOPIC).toSet
     
     // Create Kafka stream, ignore topic name and extract values
@@ -61,7 +61,7 @@ object KafkaConsumer {
     // Converting Map objects to tuples
     val objectTuples = objects.map(obj => (obj("msg"), obj("user"), obj("lang"), obj("time"), obj("id")))
     
-     // Storing to Cassandra s
+     // Storing to Cassandra 
     objectTuples.foreachRDD((rdd, time) => {
       rdd.cache()
       println("Writing " + rdd.count() + " rows to Cassandra")

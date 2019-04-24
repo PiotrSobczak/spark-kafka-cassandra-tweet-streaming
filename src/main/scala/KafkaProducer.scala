@@ -48,16 +48,16 @@ object KafkaProducer {
     // Configure Twitter credentials using twitter.txt
     setupTwitter()
     
-    // Set up a Spark streaming context named "PopularHashtags" that runs locally using
+    // Set up a Spark streaming context named "KafkaProducer" that runs locally using
     val ssc = new StreamingContext("local[*]", "KafkaProducer", Seconds(BATCH_INTERVAL_IN_SEC))
     
-    // Getting rid of log spam */
+    // Setting log level
     setupLogging()
     
     // Create a DStream from Twitter
     val tweetsRaw = TwitterUtils.createStream(ssc, None)
     
-    //Convert Twitter Statuses to jsons
+    // Convert Twitter Statuses to jsons
     val tweetObjects = tweetsRaw.map(toJson)
     
     // Publishing Twitter jsons on Kafka topic
