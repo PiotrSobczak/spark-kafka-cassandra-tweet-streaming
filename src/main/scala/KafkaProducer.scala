@@ -9,6 +9,7 @@ import org.apache.spark.streaming.StreamingContext._
 
 /** Kafka imports */
 import org.apache.kafka.clients.producer._
+
 import org.apache.kafka.common.serialization._;
 
 /** Other imports */
@@ -21,6 +22,33 @@ import Utilities._
 /** Listens to a stream of Tweets and keeps track of the most popular
  *  hashtags over a 5 minute window.
  */
+
+/** KafkaProducer Wrapper */
+class KafkaSink(createProducerFunc: () => KafkaProducer[String, String]) extends Serializable {
+
+  lazy val producer = createProducerFunc()
+
+  def send(topic: String, value: String): Unit = producer.send(new ProducerRecord(topic, value))
+}
+
+/** KafkaProducer Factory */
+object KafkaSink {
+  def apply(config: Properties): KafkaSink = {
+    val createProducerFunc = () => {
+      val producer = new KafkaProducer[String, String](config)
+
+      /** Closing producer on JVM close, Without it, all messages buffered internally by Kafka producer would be lost. */
+      sys.addShutdownHook {
+        producer.close()
+      }
+
+      producer
+    }
+    new KafkaSink(createProducerFunc)
+  }
+}
+
+
 object KafkaProducer {
   
   val TOPIC : String = "tweets";
@@ -49,8 +77,10 @@ object KafkaProducer {
     setupTwitter()
     
     // Set up a Spark streaming context named "KafkaProducer" that runs locally using
-    val ssc = new StreamingContext("local[*]", "KafkaProducer", Seconds(BATCH_INTERVAL_IN_SEC))
-    
+    val sparkConf = new SparkConf().setMaster("local[*]").setAppName("KafkaProducer")
+    val sc = new SparkContext(sparkConf)
+    val ssc = new StreamingContext(sc, Seconds(BATCH_INTERVAL_IN_SEC))
+
     // Setting log level
     setupLogging()
     
@@ -62,13 +92,10 @@ object KafkaProducer {
     
     // Publishing Twitter jsons on Kafka topic
     // Note: Creating and disposing KafkaProducer for each partition results in an overhead. This could be optimized using Sinks.
+    val kafkaSink = sc.broadcast(KafkaSink(props))
     tweetObjects.foreachRDD { rdd =>
-      rdd.foreachPartition { partitionOfRecords =>
-        val producer = new KafkaProducer[String, String](props)
-        partitionOfRecords.foreach { message =>
-          producer.send(new ProducerRecord(TOPIC, "key", message))
-        }
-        producer.close()
+      rdd.foreach { message =>
+        kafkaSink.value.send(TOPIC, message)
       }
     }
     ssc.checkpoint(CHECKPOINT_PATH)
