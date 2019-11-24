@@ -86,7 +86,7 @@ object KafkaProducer {
     
     // Create a DStream from Twitter
     val tweetsRaw = TwitterUtils.createStream(ssc, None)
-    
+
     // Convert Twitter Statuses to jsons
     val tweetObjects = tweetsRaw.map(toJson)
     
