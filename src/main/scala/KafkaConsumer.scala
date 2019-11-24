@@ -28,25 +28,24 @@ object KafkaConsumer {
   val CHECKPOINT_PATH : String = System.getProperty("user.home") + "/checkpoint";
   val KEYSPACE : String = "sparkkafkacassandraapp";
   val TABLE_NAME : String = "tweets";
-  
+
+  // TODO IMPLEMENT DATASET API
+
   def main(args: Array[String]) {    
     // Set up the Cassandra host address
     val conf = new SparkConf()
     conf.set("spark.cassandra.connection.host", "127.0.0.1")
     conf.setMaster("local[*]")
-    conf.setAppName("CassandraExample")
+    conf.setAppName("CassandraSink")
     
-    // Configuring Cassandra 
-//    val cassandra_host = conf.get("spark.cassandra.connection.host");
-//    val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
-//    val session = cluster.connect()
-//    session.execute(s"CREATE KEYSPACE IF NOT EXISTS $KEYSPACE WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-//    session.execute(s"CREATE TABLE IF NOT EXISTS $KEYSPACE.$TABLE_NAME (msg text, user text, lang text, time text, id bigint, PRIMARY KEY(id)) ")
-//    session.execute(s"TRUNCATE $KEYSPACE.$TABLE_NAME")
-//    session.close()
-
-    // TODO DATASET API
-    // TODO AVRO
+    // Configuring Cassandra
+    val cassandra_host = conf.get("spark.cassandra.connection.host");
+    val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
+    val session = cluster.connect()
+    session.execute(s"CREATE KEYSPACE IF NOT EXISTS $KEYSPACE WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+    session.execute(s"CREATE TABLE IF NOT EXISTS $KEYSPACE.$TABLE_NAME (msg text, user text, lang text, time text, id bigint, PRIMARY KEY(id)) ")
+    session.execute(s"TRUNCATE $KEYSPACE.$TABLE_NAME")
+    session.close()
 
     val ssc = new StreamingContext(conf, Seconds(BATCH_INTERVAL_IN_SEC))
     
@@ -58,20 +57,15 @@ object KafkaConsumer {
     
     // Create Kafka stream, ignore topic name and extract values
     val lines = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, topics).map(_._2)
-//    lines.print()
-//    // Converting incoming jsons to Map objects
-//    val objects = lines.map(line => scala.util.parsing.json.JSON.parseFull(line).get.asInstanceOf[Map[String, Any]])
-//    objects.print()
-//    // Converting Map objects to tuples
-//    val objectTuples = objects.map(obj => (obj("msg"), obj("user"), obj("lang"), obj("time"), obj("id")))
-    
-     // Storing to Cassandra
-    val objectTuples = extractData(lines)
-    objectTuples.print()
+
+    // Transforming jsons to tuples
+    val objectTuples = transformData(lines)
+
+    // Storing to Cassandra
     objectTuples.foreachRDD((rdd, time) => {
       rdd.cache()
       println("Writing " + rdd.count() + " rows to Cassandra")
-//      rdd.saveToCassandra(KEYSPACE, TABLE_NAME, SomeColumns("msg", "user", "lang", "time", "id"))
+      rdd.saveToCassandra(KEYSPACE, TABLE_NAME, SomeColumns("msg", "user", "lang", "time", "id"))
     })
     
     ssc.checkpoint(CHECKPOINT_PATH)
@@ -79,14 +73,12 @@ object KafkaConsumer {
     ssc.awaitTermination()
   }
 
-  def extractData(lines: DStream[String]) : DStream[List[String]] = {
-    lines.print()
-    // Converting incoming jsons to Map objects
-    val objects = lines.map(line => scala.util.parsing.json.JSON.parseFull(line).get.asInstanceOf[Map[String, String]])
-    objects.print()
+  def transformData(lines: DStream[String]) : DStream[(String, String, String, String, Double)] = {
+    // Converting jsons to Map objects
+    val objects = lines.map(line => scala.util.parsing.json.JSON.parseFull(line).get.asInstanceOf[Map[String, Any]])
+
     // Converting Map objects to tuples
-    val objectTuples = objects.map(obj => List(obj("msg"), obj("user"), obj("lang"), obj("time"), obj("id")))
+    val objectTuples = objects.map(obj => (obj("msg").asInstanceOf[String], obj("user").asInstanceOf[String],obj("lang").asInstanceOf[String], obj("time").asInstanceOf[String],obj("id").asInstanceOf[Double]))
     objectTuples
   }
-
 }

@@ -65,7 +65,9 @@ object KafkaProducer {
     )
     return scala.util.parsing.json.JSONObject(mapObj).toString()
   }
-  
+
+  // TODO AVRO
+
   /** Our main function where the action happens */
   def main(args: Array[String]) {
      val  props = new Properties()
@@ -91,7 +93,7 @@ object KafkaProducer {
     val tweetObjects = tweetsRaw.map(toJson)
     
     // Publishing Twitter jsons on Kafka topic
-    // Note: Creating and disposing KafkaProducer for each partition results in an overhead. This could be optimized using Sinks.
+    // Sink solution based on: https://allegro.tech/2015/08/spark-kafka-integration.html
     val kafkaSink = sc.broadcast(KafkaSink(props))
     tweetObjects.foreachRDD { rdd =>
       rdd.foreach { message =>
