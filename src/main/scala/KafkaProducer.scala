@@ -70,18 +70,27 @@ object KafkaProducer {
 
   /** Our main function where the action happens */
   def main(args: Array[String]) {
-     val  props = new Properties()
-     props.put("bootstrap.servers", "localhost:9092")   
-     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
-     props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
-      
+    // Parse args
+    val usage = """Usage: --twitterConfig path-to-twitter.json --kafkaConfig path-to-kafka.config""";
+    assert(args.length == 4, "Invalid usage! " + usage)
+    val argsMap = Utilities.parseArgs(args)
+
+    // Load twitter and kafka config jsons
+    val twitterConfig = readJson(argsMap("--twitterConfig"))
+    val kafkaConfig = readJson(argsMap("--kafkaConfig"))
+
     // Configure Twitter credentials using twitter.txt
-    setupTwitter()
+    setupTwitter(twitterConfig)
     
     // Set up a Spark streaming context named "KafkaProducer" that runs locally using
     val sparkConf = new SparkConf().setMaster("local[*]").setAppName("KafkaProducer")
     val sc = new SparkContext(sparkConf)
     val ssc = new StreamingContext(sc, Seconds(BATCH_INTERVAL_IN_SEC))
+
+    val kafkaProps = setupKafkaProperties(kafkaConfig)
+
+    // Sink solution based on: https://allegro.tech/2015/08/spark-kafka-integration.html
+    val kafkaSink = sc.broadcast(KafkaSink(kafkaProps))
 
     // Setting log level
     setupLogging()
@@ -93,11 +102,9 @@ object KafkaProducer {
     val tweetObjects = tweetsRaw.map(toJson)
     
     // Publishing Twitter jsons on Kafka topic
-    // Sink solution based on: https://allegro.tech/2015/08/spark-kafka-integration.html
-    val kafkaSink = sc.broadcast(KafkaSink(props))
     tweetObjects.foreachRDD { rdd =>
       rdd.foreach { message =>
-        kafkaSink.value.send(TOPIC, message)
+        kafkaSink.value.send(kafkaProps.getProperty("topic"), message)
       }
     }
     ssc.checkpoint(CHECKPOINT_PATH)

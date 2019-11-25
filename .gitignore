@@ -9,3 +9,5 @@ project/target/
 target/
 twitter.config
 .idea
+kafka.json
+twitter.json

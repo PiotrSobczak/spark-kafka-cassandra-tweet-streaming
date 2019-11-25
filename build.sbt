@@ -23,3 +23,4 @@ libraryDependencies += "org.apache.bahir" %% "spark-streaming-twitter" % "2.3.0"
 //libraryDependencies += "org.apache.avro"  %  "avro"  %  "1.7.7"
 libraryDependencies += "org.scalatest" % "scalatest_2.11" % "3.0.5" % "test"
 libraryDependencies += "com.holdenkarau" %% "spark-testing-base" % "2.1.0_0.8.0" % Test
+//libraryDependencies += "io.spray" %%  "spray-json" % "1.3.4"

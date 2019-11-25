@@ -2,6 +2,8 @@
 
 package com.piosobc.sparkstreamingtweets
 
+import scala.collection.JavaConverters._
+
 /** Spark imports */
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.{Seconds, StreamingContext}
@@ -22,8 +24,6 @@ import Utilities._
 
 /** Working example of listening for log data from Kafka's testLogs topic on port 9092. */
 object KafkaConsumer {
-  
-  val TOPIC : String = "tweets";
   val BATCH_INTERVAL_IN_SEC : Int = 1;
   val CHECKPOINT_PATH : String = System.getProperty("user.home") + "/checkpoint";
   val KEYSPACE : String = "sparkkafkacassandraapp";
@@ -37,35 +37,45 @@ object KafkaConsumer {
     conf.set("spark.cassandra.connection.host", "127.0.0.1")
     conf.setMaster("local[*]")
     conf.setAppName("CassandraSink")
-    
+
+    val usage = """Usage: --kafkaConfig path-to-kafka.config""";
+    assert(args.length == 2, "Invalid usage! " + usage)
+    val argsMap = Utilities.parseArgs(args)
+    val kafkaConfig = readJson(argsMap("--kafkaConfig"))
+    val kafkaProps = setupKafkaProperties(kafkaConfig)
+
     // Configuring Cassandra
-    val cassandra_host = conf.get("spark.cassandra.connection.host");
-    val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
-    val session = cluster.connect()
-    session.execute(s"CREATE KEYSPACE IF NOT EXISTS $KEYSPACE WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-    session.execute(s"CREATE TABLE IF NOT EXISTS $KEYSPACE.$TABLE_NAME (msg text, user text, lang text, time text, id bigint, PRIMARY KEY(id)) ")
-    session.execute(s"TRUNCATE $KEYSPACE.$TABLE_NAME")
-    session.close()
+//    val cassandra_host = conf.get("spark.cassandra.connection.host");
+//    val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
+//    val session = cluster.connect()
+//    session.execute(s"CREATE KEYSPACE IF NOT EXISTS $KEYSPACE WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+//    session.execute(s"CREATE TABLE IF NOT EXISTS $KEYSPACE.$TABLE_NAME (msg text, user text, lang text, time text, id bigint, PRIMARY KEY(id)) ")
+//    session.execute(s"TRUNCATE $KEYSPACE.$TABLE_NAME")
+//    session.close()
 
     val ssc = new StreamingContext(conf, Seconds(BATCH_INTERVAL_IN_SEC))
     
     setupLogging()
 
     // Configuring Kafka
-    val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
-    val topics = List(TOPIC).toSet
+//    val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
+    val topics = List(kafkaProps.getProperty("topic")).toSet
     
     // Create Kafka stream, ignore topic name and extract values
-    val lines = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, topics).map(_._2)
+    val lines = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaProps.asInstanceOf[scala.collection.mutable.Map[String, String]].toMap[String, String], topics).map(_._2)
+
+    lines.print()
 
     // Transforming jsons to tuples
     val objectTuples = transformData(lines)
+
+    objectTuples.print()
 
     // Storing to Cassandra
     objectTuples.foreachRDD((rdd, time) => {
       rdd.cache()
       println("Writing " + rdd.count() + " rows to Cassandra")
-      rdd.saveToCassandra(KEYSPACE, TABLE_NAME, SomeColumns("msg", "user", "lang", "time", "id"))
+//      rdd.saveToCassandra(KEYSPACE, TABLE_NAME, SomeColumns("msg", "user", "lang", "time", "id"))
     })
     
     ssc.checkpoint(CHECKPOINT_PATH)
