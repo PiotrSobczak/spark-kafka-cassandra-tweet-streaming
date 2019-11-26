@@ -13,7 +13,7 @@ assemblyMergeStrategy in assembly := {
 
 libraryDependencies += "org.apache.spark" %% "spark-core" % "2.3.3" % "provided"
 libraryDependencies += "org.apache.spark" %% "spark-streaming" % "2.3.3"
-libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-8" % "2.0.0"
+libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-10" % "2.4.4"
 libraryDependencies += "org.twitter4j" % "twitter4j-core" % "4.0.4"
 libraryDependencies += "org.twitter4j" % "twitter4j-stream" % "4.0.4"
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.3.3"

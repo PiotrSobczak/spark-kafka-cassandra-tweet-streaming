@@ -1,6 +1,9 @@
 {
-  "bootstrap.servers": "KAFKA_BROKER_HOSTNAME:PORT",
-  "key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
-  "value.serializer": "org.apache.kafka.common.serialization.StringSerializer",
-  "topic": "psobczak-topic"
+    "bootstrap.servers": "KAFKA_BROKER_LIST",
+    "key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
+    "value.serializer": "org.apache.kafka.common.serialization.StringSerializer",
+    "value.deserializer": "org.apache.kafka.common.serialization.StringDeserializer",
+    "key.deserializer": "org.apache.kafka.common.serialization.StringDeserializer",
+    "topic": "TOPIC_NAME",
+    "group.id": "CONSUMER_GROUP_NAME"
 }

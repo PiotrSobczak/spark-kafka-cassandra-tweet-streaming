@@ -16,8 +16,7 @@ import com.datastax.driver.core.Cluster
 import org.apache.spark.sql.cassandra._
 
 /** Kafka imports */
-import org.apache.spark.streaming.kafka._
-import kafka.serializer.StringDecoder
+import org.apache.spark.streaming.kafka010._
 
 /** Custom imports */
 import Utilities._
@@ -54,16 +53,16 @@ object KafkaConsumer {
 //    session.close()
 
     val ssc = new StreamingContext(conf, Seconds(BATCH_INTERVAL_IN_SEC))
-    
+
     setupLogging()
 
-    // Configuring Kafka
-//    val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
-    val topics = List(kafkaProps.getProperty("topic")).toSet
-    
-    // Create Kafka stream, ignore topic name and extract values
-    val lines = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaProps.asInstanceOf[scala.collection.mutable.Map[String, String]].toMap[String, String], topics).map(_._2)
-
+    val lines = KafkaUtils.createDirectStream[String, String](
+      ssc,
+      LocationStrategies.PreferConsistent,
+      ConsumerStrategies.Subscribe[String, String](
+        Set(kafkaProps.getProperty("topic")), kafkaProps.asScala.toMap[String, String]
+      )
+    ).map(x => x.value())
     lines.print()
 
     // Transforming jsons to tuples

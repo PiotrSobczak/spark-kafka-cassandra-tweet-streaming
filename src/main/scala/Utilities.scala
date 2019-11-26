@@ -5,8 +5,6 @@ import java.util.regex.Pattern
 import java.util.regex.Matcher
 
 import scala.collection.mutable
-import spray.json._
-import DefaultJsonProtocol._ // if you don't supply your own Protocol (see below)
 import scala.util.parsing.json.JSON
 import scala.io.Source
 import java.util.Properties
