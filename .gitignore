@@ -11,3 +11,5 @@ twitter.config
 .idea
 kafka.json
 twitter.json
+cassandra.json
+spark.json

@@ -18,6 +18,7 @@ import twitter4j.Status
 
 /** Custom imports */
 import Utilities._
+import Config._
 
 /** Listens to a stream of Tweets and keeps track of the most popular
  *  hashtags over a 5 minute window.
@@ -72,12 +73,12 @@ object KafkaProducer {
   def main(args: Array[String]) {
     // Parse args
     val usage = """Usage: --twitterConfig path-to-twitter.json --kafkaConfig path-to-kafka.config""";
-    assert(args.length == 4, "Invalid usage! " + usage)
+    assert(args.length == 2, "Invalid usage! " + usage)
     val argsMap = Utilities.parseArgs(args)
 
     // Load twitter and kafka config jsons
-    val twitterConfig = readJson(argsMap("--twitterConfig"))
-    val kafkaConfig = readJson(argsMap("--kafkaConfig"))
+    val twitterConfig = readJson(argsMap("--config") + "/" + TWITTER_CONFIG_FILE)
+    val kafkaConfig = readJson(argsMap("--config") + "/" + KAFKA_CONFIG_FILE)
 
     // Configure Twitter credentials using twitter.txt
     setupTwitter(twitterConfig)
@@ -87,7 +88,7 @@ object KafkaProducer {
     val sc = new SparkContext(sparkConf)
     val ssc = new StreamingContext(sc, Seconds(BATCH_INTERVAL_IN_SEC))
 
-    val kafkaProps = setupKafkaProperties(kafkaConfig)
+    val kafkaProps = setupKafka(kafkaConfig)
 
     // Sink solution based on: https://allegro.tech/2015/08/spark-kafka-integration.html
     val kafkaSink = sc.broadcast(KafkaSink(kafkaProps))

@@ -1,0 +1,7 @@
+{
+    "master": "MASTER_URL",
+    "appName": "APP_NAME",
+    "batchInterval": "BATCH_INTERVAL",
+    "checkpointPath": "CHECKPOINT_PATH",
+    "spark.cassandra.connection.host": "CASSANDRA_HOST"
+}

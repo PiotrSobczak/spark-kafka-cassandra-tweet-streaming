@@ -1,0 +1,6 @@
+{
+    "spark.cassandra.connection.host": "CASSANDRA_HOST",
+    "KEYSPACE": "KEYSPACE_NAME",
+    "TABLE": "TABLE_NAME",
+    "accessTokenSecret": "PASTE_ACCESS_TOKEN_SECRET_HERE"
+}
