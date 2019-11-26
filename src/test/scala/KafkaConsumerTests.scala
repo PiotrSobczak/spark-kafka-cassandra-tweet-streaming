@@ -40,6 +40,7 @@ class KafkaConsumerTests extends WordSpec with StreamingSuiteBase {
 
       testCases.foreach { testCase =>
         testOperation(Seq(Seq(testCase.json)), KafkaConsumer.transformData _, Seq(Seq(testCase.tuple)), ordered=false)
+        print("CORRECT! testCase: %s, result: %s\n" format(testCase.json, testCase.tuple) )
       }
     }
   }
