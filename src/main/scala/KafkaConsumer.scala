@@ -7,8 +7,7 @@ import scala.collection.JavaConverters._
 /** Spark imports */
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.storage.StorageLevel
-import org.apache.spark.streaming.dstream.{DStream, InputDStream}
+import org.apache.spark.streaming.dstream.DStream
 
 /** Cassandra imports */
 import com.datastax.spark.connector._
@@ -44,13 +43,13 @@ object KafkaConsumer {
     val kafkaProps = setupKafkaProperties(kafkaConfig)
 
     // Configuring Cassandra
-//    val cassandra_host = conf.get("spark.cassandra.connection.host");
-//    val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
-//    val session = cluster.connect()
-//    session.execute(s"CREATE KEYSPACE IF NOT EXISTS $KEYSPACE WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-//    session.execute(s"CREATE TABLE IF NOT EXISTS $KEYSPACE.$TABLE_NAME (msg text, user text, lang text, time text, id bigint, PRIMARY KEY(id)) ")
-//    session.execute(s"TRUNCATE $KEYSPACE.$TABLE_NAME")
-//    session.close()
+    val cassandra_host = conf.get("spark.cassandra.connection.host");
+    val cluster = Cluster.builder().addContactPoint(cassandra_host).build()
+    val session = cluster.connect()
+    session.execute(s"CREATE KEYSPACE IF NOT EXISTS $KEYSPACE WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+    session.execute(s"CREATE TABLE IF NOT EXISTS $KEYSPACE.$TABLE_NAME (msg text, user text, lang text, time text, id bigint, PRIMARY KEY(id)) ")
+    session.execute(s"TRUNCATE $KEYSPACE.$TABLE_NAME")
+    session.close()
 
     val ssc = new StreamingContext(conf, Seconds(BATCH_INTERVAL_IN_SEC))
 
@@ -74,7 +73,7 @@ object KafkaConsumer {
     objectTuples.foreachRDD((rdd, time) => {
       rdd.cache()
       println("Writing " + rdd.count() + " rows to Cassandra")
-//      rdd.saveToCassandra(KEYSPACE, TABLE_NAME, SomeColumns("msg", "user", "lang", "time", "id"))
+      rdd.saveToCassandra(KEYSPACE, TABLE_NAME, SomeColumns("msg", "user", "lang", "time", "id"))
     })
     
     ssc.checkpoint(CHECKPOINT_PATH)
