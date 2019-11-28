@@ -5,12 +5,15 @@ import scala.util.parsing.json.JSON
 import java.util.Properties
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 
 /** Cassandra imports */
 import com.datastax.driver.core.Cluster
 
 object Utilities {
     def parseArgs(args: Array[String]) : mutable.Map[String, String] = {
+      val usage = """Usage: --config path-to-config-dir""";
+      assert(args.length == 2, "Invalid usage! " + usage)
       var argsMap:  mutable.Map[String, String] = mutable.Map[String, String]()
 
       args.sliding(2, 2).toList.collect {
@@ -38,9 +41,9 @@ object Utilities {
     }
 
     /** Configures kafka properties */
-    def setupKafka(twitterConfig: Map[String, String]): Properties = {
+    def setupKafka(kafkaConfig: Map[String, String]): Properties = {
       val kafkaProps = new Properties()
-      for ((key, value) <- twitterConfig) kafkaProps.put(key, value)
+      for ((key, value) <- kafkaConfig) kafkaProps.put(key, value)
       kafkaProps
     }
 
@@ -53,13 +56,12 @@ object Utilities {
       session.close()
     }
 
-    def setupSpark(sparkConfig: Map[String, String]): SparkConf = {
-      val sparkConf = new SparkConf().set(
-        "spark.cassandra.connection.host",
-        sparkConfig("spark.cassandra.connection.host")
-      )
-      sparkConf.setMaster(sparkConfig("master"))
-      sparkConf.setAppName(sparkConfig("appName"))
-      sparkConf
+    def setupSpark(sparkConfig: Map[String, String]): SparkSession = {
+      val spark = SparkSession
+        .builder
+        .appName(sparkConfig("appName"))
+        .master(sparkConfig("master"))
+        .getOrCreate()
+      spark
     }
 }
