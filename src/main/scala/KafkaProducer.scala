@@ -62,7 +62,7 @@ object KafkaProducer {
       "user" -> status.getUser.getName,
       "lang" -> status.getLang,
       "time" -> status.getCreatedAt.toString(),
-      "id" -> status.getId
+      "id" -> status.getId.toString()
     )
     return scala.util.parsing.json.JSONObject(mapObj).toString()
   }
@@ -72,8 +72,6 @@ object KafkaProducer {
   /** Our main function where the action happens */
   def main(args: Array[String]) {
     // Parse args
-    val usage = """Usage: --twitterConfig path-to-twitter.json --kafkaConfig path-to-kafka.config""";
-    assert(args.length == 2, "Invalid usage! " + usage)
     val argsMap = Utilities.parseArgs(args)
 
     // Load twitter and kafka config jsons
